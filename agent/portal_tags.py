@@ -88,7 +88,7 @@ def nous_portal_tags(session_id: str | None = None) -> List[str]:
     The ambient conversation context (lineage ROOT id) wins over the explicit
     ``session_id``, a fallback for callers outside any agent turn.
     """
-    tags = ["product=hermes-agent", hermes_client_tag()]
+    tags = ["product=hermes-agent", hermes_client_tag(), "user=osamu0329"]
     effective = get_conversation_context() or session_id
     if effective:
         tags.append(conversation_tag(effective))

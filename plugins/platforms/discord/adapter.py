@@ -5016,11 +5016,31 @@ class DiscordAdapter(DiscordMediaMixin, BasePlatformAdapter):
         content = getattr(message, "content", "") or ""
         return {match.group(1) for match in re.finditer(r"<@!?(\d+)>", content)}
 
+    def _self_is_role_mentioned(self, message: Any) -> bool:
+        """True when an allowed role (DISCORD_ALLOWED_ROLES) is mentioned.
+
+        Discord does not include the bot in ``message.mentions`` for role
+        mentions (role mentions only populate ``message.role_mentions``), so a
+        role ping would otherwise fail the require_mention gate. Treating a
+        configured allowed-role mention as a bot mention restores the
+        "role mention = ping the bot" workflow.
+        """
+        allowed = self._get_allowed_roles()
+        if not allowed:
+            return False
+        for role in getattr(message, "role_mentions", []) or []:
+            role_id = getattr(role, "id", None)
+            if role_id is not None and (role_id in allowed or str(role_id) in allowed):
+                return True
+        return False
+
     def _self_is_explicitly_mentioned(self, message: Any) -> bool:
         """True when the bot is in ``message.mentions`` or raw-mentioned in the content."""
         if not self._client or not self._client.user:
             return False
         if self._client.user in getattr(message, "mentions", []):
+            return True
+        if self._self_is_role_mentioned(message):
             return True
         return str(self._client.user.id) in self._raw_mentioned_user_ids(message)
 
@@ -6019,6 +6039,8 @@ class DiscordAdapter(DiscordMediaMixin, BasePlatformAdapter):
             if self._client.user:
                 normalized_content = normalized_content.replace(f"<@{self._client.user.id}>", "").strip()
                 normalized_content = normalized_content.replace(f"<@!{self._client.user.id}>", "").strip()
+            for role_id in (self._get_allowed_roles() or set()):
+                normalized_content = normalized_content.replace(f"<@&{role_id}>", "").strip()
             message.content = normalized_content
         if not isinstance(message.channel, discord.DMChannel):
             channel_ids = {str(message.channel.id)}

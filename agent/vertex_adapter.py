@@ -88,8 +88,16 @@ def _resolve_credentials_path(explicit: Optional[str]) -> Optional[str]:
     # .env loaded at boot, and a raw read could mint (and bill) another profile's SA tokens.
     for env_var in ("VERTEX_CREDENTIALS_PATH", "GOOGLE_APPLICATION_CREDENTIALS"):
         path = _get_secret(env_var)
-        if path and os.path.exists(path):
-            return path
+        if path:
+            if os.path.exists(path):
+                return path
+            # Convert Windows path (e.g. C:\Users\... or C:/Users/...) to WSL path (/mnt/c/Users/...)
+            if len(path) >= 3 and path[1] == ":" and (path[2] in ("\\", "/")):
+                drive = path[0].lower()
+                rel = path[3:].replace("\\", "/")
+                wsl_path = f"/mnt/{drive}/{rel}"
+                if os.path.exists(wsl_path):
+                    return wsl_path
     return None
 
 

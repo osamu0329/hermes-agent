@@ -539,6 +539,10 @@ class ChatCompletionsTransport(ProviderTransport):
             elif raw_thinking_config:
                 extra_body["thinking_config"] = raw_thinking_config
 
+        if params.get("is_nous") and "tags" not in extra_body:
+            from agent.portal_tags import nous_portal_tags
+            extra_body["tags"] = nous_portal_tags(session_id=params.get("session_id"))
+
         if params.get("extra_body_additions"):
             extra_body.update(params["extra_body_additions"])
         if extra_body:
